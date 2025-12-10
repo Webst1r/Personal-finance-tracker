@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Finance Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 0.95em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-box {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            color: #718096;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #2d3748;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            color: #4a5568;
+            margin-bottom: 5px;
+            font-weight: 500;
+            font-size: 0.9em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            -webkit-appearance: none;
+        }
+
+        .transaction-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .transaction-category {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .transaction-date {
+            color: #718096;
+            font-size: 0.85em;
+        }
+
+        .transaction-amount {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .delete-btn {
+            background: #fc8181;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+
+        .category-breakdown {
+            margin-top: 20px;
+        }
+
+        .category-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .category-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-bar {
+            height: 8px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Personal Finance Tracker</h1>
+            <p class="subtitle">Manage your expenses and track spending patterns</p>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <h3>📊 Spending Overview</h3>
+                <canvas id="spendingChart" width="400" height="400"></canvas>
+            </div>
+
+            <div class="card">
+                <h3>📈 Financial Summary</h3>
+                <div class="stat-box">
+                    <div class="stat-label">Total Spent</div>
+                    <div class="stat-value" id="totalSpent">R 0.00</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #48bb78;">
+                    <div class="stat-label">Transactions</div>
+                    <div class="stat-value" id="transactionCount">0</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #ed8936;">
+                    <div class="stat-label">Average Transaction</div>
+                    <div class="stat-value" id="avgTransaction">R 0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>➕ Add Transaction</h3>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="category">
+                        <option value="">Select category</option>
+                        <option value="Groceries">Groceries</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Bills">Bills</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Dining">Dining</option>
+                        <option value="Health">Health</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Amount (ZAR)</label>
+                    <input type="number" id="amount" placeholder="0.00" step="0.01" min="0" value="">
+                </div>
+                <div class="form-group">
+                    <label>Description (optional)</label>
+                    <input type="text" id="description" placeholder="What was this for?" value="">
+                </div>
+                <button class="btn" id="addBtn">Add Transaction</button>
+            </div>
+
+            <div class="card">
+                <h3>📝 Recent Transactions</h3>
+                <div class="transaction-list" id="transactionList">
+                    <p style="color: #718096; text-align: center; padding: 40px;">No transactions yet. Add your first one!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Category Breakdown</h3>
+            <div class="category-breakdown" id="categoryBreakdown"></div>
+        </div>
+    </div>
+
+    <script>
+        var transactions = [];
+        var chart = null;
+
+        var categoryColors = {
+            'Groceries': '#48bb78',
+            'Transport': '#4299e1',
+            'Entertainment': '#9f7aea',
+            'Bills': '#ed8936',
+            'Shopping': '#f56565',
+            'Dining': '#ecc94b',
+            'Health': '#38b2ac',
+            'Other': '#a0aec0'
+        };
+
+        function initChart() {
+            var ctx = document.getElementById('spendingChart');
+            if (!ctx) return;
+            
+            chart = new Chart(ctx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            if (!chart) return;
+            
+            var categoryTotals = {};
+            for (var i = 0; i < transactions.length; i++) {
+                var t = transactions[i];
+                if (categoryTotals[t.category]) {
+                    categoryTotals[t.category] += t.amount;
+                } else {
+                    categoryTotals[t.category] = t.amount;
+                }
+            }
+
+            var labels = [];
+            var data = [];
+            var colors = [];
+            
+            for (var cat in categoryTotals) {
+                labels.push(cat);
+                data.push(categoryTotals[cat]);
+                colors.push(categoryColors[cat]);
+            }
+
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = data;
+            chart.data.datasets[0].backgroundColor = colors;
+            chart.update();
+        }
+
+        function updateStats() {
+            var total = 0;
+            for (var i = 0; i < transactions.length; i++) {
+                total += transactions[i].amount;
+            }
+            
+            var avg = transactions.length > 0 ? total / transactions.length : 0;
+
+            document.getElementById('totalSpent').innerHTML = 'R ' + total.toFixed(2);
+            document.getElementById('transactionCount').innerHTML = transactions.length;
+            document.getElementById('avgTransaction').innerHTML = 'R ' + avg.toFixed(2);
+        }
+
+        function updateTransactionList() {
+            var list = document.getElementById('transactionList');
+            
+            if (transactions.length === 0) {
+                list.innerHTML = '<p style="color: #718096; text-align: center; padding: 40px;">No transactions yet. Add your first one!</p>';
+                return;
+            }
+
+            var html = '';
+            for (var i = transactions.length - 1; i >= 0; i--) {
+                var t = transactions[i];
+                html += '<div class="transaction-item">';
+                html += '<div>';
+                html += '<div class="transaction-category">' + t.category + '</div>';
+                if (t.description) {
+                    html += '<div class="transaction-date">' + t.description + '</div>';
+                }
+                html += '<div class="transaction-date">' + t.date + '</div>';
+                html += '</div>';
+                html += '<div style="display: flex; align-items: center;">';
+                html += '<div class="transaction-amount">R ' + t.amount.toFixed(2) + '</div>';
+                html += '<button class="delete-btn" data-index="' + i + '">✕</button>';
+                html += '</div>';
+                html += '</div>';
+            }
+            list.innerHTML = html;
+            
+            var deleteBtns = document.getElementsByClassName('delete-btn');
+            for (var j = 0; j < deleteBtns.length; j++) {
+                deleteBtns[j].onclick = function() {
+                    var idx = parseInt(this.getAttribute('data-index'));
+                    deleteTransaction(idx);
+                };
+            }
+        }
+
+        function updateCategoryBreakdown() {
+            var categoryTotals = {};
+            var total = 0;
+            
+            for (var i = 0; i < transactions.length; i++) {
+                var t = transactions[i];
+                if (categoryTotals[t.category]) {
+                    categoryTotals[t.category] += t.amount;
+                } else {
+                    categoryTotals[t.category] = t.amount;
+                }
+                total += t.amount;
+            }
+
+            var breakdown = document.getElementById('categoryBreakdown');
+            var entries = [];
+            
+            for (var cat in categoryTotals) {
+                entries.push([cat, categoryTotals[cat]]);
+            }
+            
+            entries.sort(function(a, b) { return b[1] - a[1]; });
+            
+            var html = '';
+            for (var j = 0; j < entries.length; j++) {
+                var cat = entries[j][0];
+                var amount = entries[j][1];
+                var percentage = (amount / total * 100).toFixed(1);
+                
+                html += '<div class="category-item">';
+                html += '<div>';
+                html += '<strong>' + cat + '</strong>';
+                html += '<div class="category-bar" style="width: ' + percentage + '%; background: ' + categoryColors[cat] + '"></div>';
+                html += '</div>';
+                html += '<div>';
+                html += '<strong>R ' + amount.toFixed(2) + '</strong>';
+                html += '<div style="color: #718096; font-size: 0.85em;">' + percentage + '%</div>';
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            breakdown.innerHTML = html;
+        }
+
+        function addTransaction(category, amount, description) {
+            var now = new Date();
+            var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            var dateStr = now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+            
+            var transaction = {
+                category: category,
+                amount: parseFloat(amount),
+                description: description || '',
+                date: dateStr
+            };
+
+            transactions.push(transaction);
+            updateDisplay();
+        }
+
+        function deleteTransaction(index) {
+            transactions.splice(index, 1);
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            updateChart();
+            updateStats();
+            updateTransactionList();
+            updateCategoryBreakdown();
+        }
+
+        function handleAddTransaction() {
+            var category = document.getElementById('category').value;
+            var amount = document.getElementById('amount').value;
+            var description = document.getElementById('description').value;
+
+            if (!category || category === '') {
+                alert('Please select a category');
+                return false;
+            }
+            
+            if (!amount || amount === '' || parseFloat(amount) <= 0) {
+                alert('Please enter a valid amount');
+                return false;
+            }
+
+            addTransaction(category, amount, description);
+
+            document.getElementById('category').value = '';
+            document.getElementById('amount').value = '';
+            document.getElementById('description').value = '';
+            
+            return false;
+        }
+
+        window.onload = function() {
+            addTransaction('Groceries', 450.00, 'Checkers shopping');
+            addTransaction('Transport', 85.50, 'Uber to work');
+            addTransaction('Entertainment', 180.00, 'Cinema tickets');
+            addTransaction('Dining', 220.00, 'Restaurant');
+
+            initChart();
+            updateDisplay();
+            
+            var addBtn = document.getElementById('addBtn');
+            if (addBtn) {
+                addBtn.onclick = handleAddTransaction;
+                addBtn.addEventListener('click', handleAddTransaction);
+                addBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    handleAddTransaction();
+                });
+            }
+        };
+    </script>
+</body>
+</html>
