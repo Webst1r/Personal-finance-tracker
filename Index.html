@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Finance Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -262,6 +264,11 @@
 
             <div class="card">
                 <h3>📝 Recent Transactions</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn" style="background: #48bb78; font-size: 0.9em; padding: 10px 15px;" id="exportCSV">📥 CSV</button>
+                    <button class="btn" style="background: #ed8936; font-size: 0.9em; padding: 10px 15px;" id="exportJSON">📥 JSON</button>
+                    <button class="btn" style="background: #e53e3e; font-size: 0.9em; padding: 10px 15px;" id="exportPDF">📥 PDF</button>
+                </div>
                 <div class="transaction-list" id="transactionList">
                     <p style="color: #718096; text-align: center; padding: 40px;">No transactions yet. Add your first one!</p>
                 </div>
@@ -496,6 +503,119 @@
             return false;
         }
 
+        function exportToPDF() {
+            if (transactions.length === 0) {
+                alert('No transactions to export!');
+                return;
+            }
+            
+            var pdfBtn = document.getElementById('exportPDF');
+            pdfBtn.innerHTML = '⏳ Generating...';
+            pdfBtn.disabled = true;
+            
+            setTimeout(function() {
+                var container = document.querySelector('.container');
+                
+                html2canvas(container, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff'
+                }).then(function(canvas) {
+                    var imgData = canvas.toDataURL('image/png');
+                    
+                    var jsPDF = window.jspdf.jsPDF;
+                    var pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: 'a4'
+                    });
+                    
+                    var imgWidth = 210;
+                    var pageHeight = 297;
+                    var imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    var heightLeft = imgHeight;
+                    var position = 0;
+                    
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                    
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+                    
+                    var filename = 'finance-report-' + new Date().toISOString().split('T')[0] + '.pdf';
+                    pdf.save(filename);
+                    
+                    pdfBtn.innerHTML = '📥 PDF';
+                    pdfBtn.disabled = false;
+                }).catch(function(error) {
+                    alert('Error generating PDF. Please try again.');
+                    console.error('PDF Error:', error);
+                    pdfBtn.innerHTML = '📥 PDF';
+                    pdfBtn.disabled = false;
+                });
+            }, 100);
+        }
+
+        function exportToCSV() {
+            if (transactions.length === 0) {
+                alert('No transactions to export!');
+                return;
+            }
+            
+            var csv = 'Category,Amount,Description,Date\n';
+            
+            for (var i = 0; i < transactions.length; i++) {
+                var t = transactions[i];
+                var desc = t.description.replace(/,/g, ';');
+                csv += t.category + ',' + t.amount + ',' + desc + ',' + t.date + '\n';
+            }
+            
+            var blob = new Blob([csv], { type: 'text/csv' });
+            var url = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'finance-tracker-' + new Date().toISOString().split('T')[0] + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+        
+        function exportToJSON() {
+            if (transactions.length === 0) {
+                alert('No transactions to export!');
+                return;
+            }
+            
+            var total = 0;
+            for (var i = 0; i < transactions.length; i++) {
+                total += transactions[i].amount;
+            }
+            
+            var exportData = {
+                exportDate: new Date().toISOString(),
+                totalTransactions: transactions.length,
+                totalAmount: total,
+                transactions: transactions
+            };
+            
+            var json = JSON.stringify(exportData, null, 2);
+            var blob = new Blob([json], { type: 'application/json' });
+            var url = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'finance-tracker-' + new Date().toISOString().split('T')[0] + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
         window.onload = function() {
             addTransaction('Groceries', 450.00, 'Checkers shopping');
             addTransaction('Transport', 85.50, 'Uber to work');
@@ -513,6 +633,21 @@
                     e.preventDefault();
                     handleAddTransaction();
                 });
+            }
+            
+            var csvBtn = document.getElementById('exportCSV');
+            if (csvBtn) {
+                csvBtn.onclick = exportToCSV;
+            }
+            
+            var jsonBtn = document.getElementById('exportJSON');
+            if (jsonBtn) {
+                jsonBtn.onclick = exportToJSON;
+            }
+            
+            var pdfBtn = document.getElementById('exportPDF');
+            if (pdfBtn) {
+                pdfBtn.onclick = exportToPDF;
             }
         };
     </script>
