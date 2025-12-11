@@ -979,6 +979,190 @@
             
             return false;
         }
+        
+        function handleSetBudget() {
+            var category = document.getElementById('budgetCategory').value;
+            var amount = document.getElementById('budgetAmount').value;
+            
+            if (!category) {
+                alert('Please select a category');
+                return false;
+            }
+            
+            if (!amount || parseFloat(amount) <= 0) {
+                alert('Please enter a valid budget amount');
+                return false;
+            }
+            
+            budgets[category] = parseFloat(amount);
+            saveToLocalStorage();
+            updateDisplay();
+            
+            document.getElementById('budgetCategory').value = '';
+            document.getElementById('budgetAmount').value = '';
+            
+            return false;
+        }
+        
+        function deleteBudget(category) {
+            delete budgets[category];
+            saveToLocalStorage();
+            updateDisplay();
+        }
+        
+        function parseCSV(text) {
+            var lines = text.split('\n');
+            var imported = 0;
+            
+            console.log('Total lines in CSV:', lines.length);
+            
+            var firstLine = lines[0].toLowerCase();
+            var hasHeaders = firstLine.includes('description') || firstLine.includes('date') || firstLine.includes('amount');
+            var startLine = hasHeaders ? 1 : 0;
+            
+            console.log('Has headers:', hasHeaders);
+            
+            for (var i = startLine; i < lines.length; i++) {
+                var line = lines[i].trim();
+                if (!line) continue;
+                
+                console.log('Processing line ' + i + ':', line);
+                
+                var parts = [];
+                var inQuotes = false;
+                var currentPart = '';
+                
+                for (var j = 0; j < line.length; j++) {
+                    var char = line[j];
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        parts.push(currentPart);
+                        currentPart = '';
+                    } else {
+                        currentPart += char;
+                    }
+                }
+                parts.push(currentPart);
+                
+                console.log('Parts found:', parts.length, parts);
+                
+                if (parts.length < 2) {
+                    console.log('Skipping - not enough columns');
+                    continue;
+                }
+                
+                for (var k = 0; k < parts.length; k++) {
+                    parts[k] = parts[k].replace(/"/g, '').trim();
+                }
+                
+                var description = parts[0];
+                
+                if (!description || description.length < 2) {
+                    console.log('Skipping - empty description');
+                    continue;
+                }
+                
+                var amount = 0;
+                var foundAmount = false;
+                
+                for (var m = 1; m < parts.length; m++) {
+                    var cleanAmount = parts[m]
+                        .replace(/R/g, '')
+                        .replace(/\$/g, '')
+                        .replace(/€/g, '')
+                        .replace(/£/g, '')
+                        .replace(/ZAR/gi, '')
+                        .replace(/\s/g, '')
+                        .replace(/[()]/g, '')
+                        .trim();
+                    
+                    var parsedAmount = parseFloat(cleanAmount);
+                    
+                    if (!isNaN(parsedAmount) && parsedAmount !== 0) {
+                        amount = Math.abs(parsedAmount);
+                        foundAmount = true;
+                        console.log('Found amount in column ' + m + ':', amount);
+                        break;
+                    }
+                }
+                
+                if (!foundAmount || amount <= 0) {
+                    console.log('Skipping - no valid amount found');
+                    continue;
+                }
+                
+                var category = guessCategory(description);
+                console.log('Importing - Description:', description, 'Amount:', amount, 'Category:', category);
+                
+                addTransaction(category, amount, description);
+                imported++;
+            }
+            
+            console.log('Total imported:', imported);
+            return imported;
+        }
+        
+        function guessCategory(description) {
+            var desc = description.toLowerCase();
+            
+            if (desc.includes('checkers') || desc.includes('woolworths') || desc.includes('spar') || desc.includes('pick n pay')) {
+                return 'Groceries';
+            } else if (desc.includes('uber') || desc.includes('fuel') || desc.includes('petrol') || desc.includes('toll')) {
+                return 'Transport';
+            } else if (desc.includes('restaurant') || desc.includes('nandos') || desc.includes('kfc') || desc.includes('mcdonald')) {
+                return 'Dining';
+            } else if (desc.includes('cinema') || desc.includes('netflix') || desc.includes('dstv') || desc.includes('showmax')) {
+                return 'Entertainment';
+            } else if (desc.includes('eskom') || desc.includes('water') || desc.includes('municipality') || desc.includes('rent')) {
+                return 'Bills';
+            } else if (desc.includes('edgars') || desc.includes('woolies') || desc.includes('mr price') || desc.includes('sportscene')) {
+                return 'Shopping';
+            } else if (desc.includes('pharmacy') || desc.includes('clicks') || desc.includes('dischem') || desc.includes('doctor')) {
+                return 'Health';
+            }
+            
+            return 'Other';
+        }
+        
+        function handleFileUpload(event) {
+            var file = event.target.files[0];
+            if (!file) {
+                console.log('No file selected');
+                return;
+            }
+            
+            console.log('File selected:', file.name);
+            
+            if (!file.name.endsWith('.csv')) {
+                alert('Please upload a CSV file');
+                return;
+            }
+            
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                console.log('File loaded, processing...');
+                var text = e.target.result;
+                console.log('File content:', text.substring(0, 200));
+                
+                var imported = parseCSV(text);
+                
+                if (imported > 0) {
+                    alert('Successfully imported ' + imported + ' transactions!');
+                    updateDisplay();
+                } else {
+                    alert('No valid transactions found. Check the console for details.');
+                }
+            };
+            
+            reader.onerror = function(e) {
+                console.error('File read error:', e);
+                alert('Error reading file');
+            };
+            
+            reader.readAsText(file);
+            event.target.value = '';
+        }
 
         function exportToPDF() {
             if (transactions.length === 0) {
@@ -991,9 +1175,88 @@
             pdfBtn.disabled = true;
             
             setTimeout(function() {
-                var container = document.querySelector('.container');
+                // Create a temporary container with only the sections we want
+                var tempContainer = document.createElement('div');
+                tempContainer.style.padding = '30px';
+                tempContainer.style.backgroundColor = '#ffffff';
+                tempContainer.style.fontFamily = 'Arial, sans-serif';
                 
-                html2canvas(container, {
+                // Add title
+                var title = document.createElement('h1');
+                title.textContent = '💰 Financial Report';
+                title.style.color = '#2d3748';
+                title.style.marginBottom = '10px';
+                tempContainer.appendChild(title);
+                
+                // Add date
+                var date = document.createElement('p');
+                date.textContent = 'Generated: ' + new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
+                date.style.color = '#718096';
+                date.style.marginBottom = '30px';
+                tempContainer.appendChild(date);
+                
+                // Clone Financial Summary
+                var summaryCard = document.querySelector('.card:has(#totalSpent)');
+                if (summaryCard) {
+                    var summaryClone = summaryCard.cloneNode(true);
+                    summaryClone.style.background = 'white';
+                    summaryClone.style.padding = '20px';
+                    summaryClone.style.marginBottom = '20px';
+                    summaryClone.style.border = '1px solid #e2e8f0';
+                    summaryClone.style.borderRadius = '10px';
+                    // Remove budget alerts from summary
+                    var alerts = summaryClone.querySelector('#budgetAlerts');
+                    if (alerts) alerts.remove();
+                    tempContainer.appendChild(summaryClone);
+                }
+                
+                // Clone Spending Overview Chart
+                var chartCard = document.querySelector('.card:has(#spendingChart)');
+                if (chartCard) {
+                    var chartContainer = document.createElement('div');
+                    chartContainer.style.background = 'white';
+                    chartContainer.style.padding = '20px';
+                    chartContainer.style.marginBottom = '20px';
+                    chartContainer.style.border = '1px solid #e2e8f0';
+                    chartContainer.style.borderRadius = '10px';
+                    
+                    var chartTitle = document.createElement('h3');
+                    chartTitle.textContent = '📊 Spending Overview';
+                    chartTitle.style.color = '#2d3748';
+                    chartTitle.style.marginBottom = '20px';
+                    chartContainer.appendChild(chartTitle);
+                    
+                    // Clone the canvas
+                    var canvas = document.getElementById('spendingChart');
+                    if (canvas) {
+                        var canvasClone = document.createElement('canvas');
+                        canvasClone.width = canvas.width;
+                        canvasClone.height = canvas.height;
+                        var ctx = canvasClone.getContext('2d');
+                        ctx.drawImage(canvas, 0, 0);
+                        chartContainer.appendChild(canvasClone);
+                    }
+                    
+                    tempContainer.appendChild(chartContainer);
+                }
+                
+                // Clone Category Breakdown
+                var breakdownSection = document.querySelector('.card:has(#categoryBreakdown)');
+                if (breakdownSection) {
+                    var breakdownClone = breakdownSection.cloneNode(true);
+                    breakdownClone.style.background = 'white';
+                    breakdownClone.style.padding = '20px';
+                    breakdownClone.style.border = '1px solid #e2e8f0';
+                    breakdownClone.style.borderRadius = '10px';
+                    tempContainer.appendChild(breakdownClone);
+                }
+                
+                // Append to body temporarily
+                tempContainer.style.position = 'absolute';
+                tempContainer.style.left = '-9999px';
+                document.body.appendChild(tempContainer);
+                
+                html2canvas(tempContainer, {
                     scale: 2,
                     useCORS: true,
                     logging: false,
@@ -1027,11 +1290,15 @@
                     var filename = 'finance-report-' + new Date().toISOString().split('T')[0] + '.pdf';
                     pdf.save(filename);
                     
+                    // Clean up
+                    document.body.removeChild(tempContainer);
+                    
                     pdfBtn.innerHTML = '📥 PDF';
                     pdfBtn.disabled = false;
                 }).catch(function(error) {
                     alert('Error generating PDF. Please try again.');
                     console.error('PDF Error:', error);
+                    document.body.removeChild(tempContainer);
                     pdfBtn.innerHTML = '📥 PDF';
                     pdfBtn.disabled = false;
                 });
@@ -1201,19 +1468,29 @@
             
             var budgetBtn = document.getElementById('setBudgetBtn');
             if (budgetBtn) {
-                budgetBtn.onclick = setBudget;
+                budgetBtn.onclick = handleSetBudget;
+                budgetBtn.addEventListener('click', handleSetBudget);
+                budgetBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    handleSetBudget();
+                });
             }
             
             var darkModeBtn = document.getElementById('darkModeToggle');
             if (darkModeBtn) {
-                darkModeBtn.onclick = toggleDarkMode;
+                darkModeBtn.onclick = function() {
+                    document.body.classList.toggle('dark-mode');
+                    var isDark = document.body.classList.contains('dark-mode');
+                    darkModeBtn.textContent = isDark ? '☀️' : '🌙';
+                    saveToLocalStorage();
+                };
             }
             
             var fileInput = document.getElementById('fileInput');
             if (fileInput) {
-                fileInput.onchange = handleFileUpload;
+                fileInput.addEventListener('change', handleFileUpload);
             }
         };
     </script>
 </body>
-</html>
+    </html>
