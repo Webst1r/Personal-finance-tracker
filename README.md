@@ -1,2 +1,2 @@
 # Personal-finance-tracker
-A simple money tracking tool, Creates financial awareness using Html , Ui, Ux and Javascript
+A responsive web application for tracking personal expenses, managing budgets, and visualizing spending patterns. Built with vanilla JavaScript to demonstrate core web development fundamentals.
