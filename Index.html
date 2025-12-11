@@ -1361,61 +1361,6 @@
         }
 
         window.onload = function() {
-            if (transactions.length === 0) {
-                alert('No transactions to export!');
-                return;
-            }
-            
-            var csv = 'Category,Amount,Description,Date\n';
-            
-            for (var i = 0; i < transactions.length; i++) {
-                var t = transactions[i];
-                var desc = t.description.replace(/,/g, ';');
-                csv += t.category + ',' + t.amount + ',' + desc + ',' + t.date + '\n';
-            }
-            
-            var blob = new Blob([csv], { type: 'text/csv' });
-            var url = window.URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'finance-tracker-' + new Date().toISOString().split('T')[0] + '.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }
-        
-        function exportToJSON() {
-            if (transactions.length === 0) {
-                alert('No transactions to export!');
-                return;
-            }
-            
-            var total = 0;
-            for (var i = 0; i < transactions.length; i++) {
-                total += transactions[i].amount;
-            }
-            
-            var exportData = {
-                exportDate: new Date().toISOString(),
-                totalTransactions: transactions.length,
-                totalAmount: total,
-                transactions: transactions
-            };
-            
-            var json = JSON.stringify(exportData, null, 2);
-            var blob = new Blob([json], { type: 'application/json' });
-            var url = window.URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'finance-tracker-' + new Date().toISOString().split('T')[0] + '.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }
-
-        window.onload = function() {
             var hasData = loadFromLocalStorage();
             
             if (!hasData) {
@@ -1430,7 +1375,6 @@
             
             var addBtn = document.getElementById('addBtn');
             if (addBtn) {
-                addBtn.onclick = handleAddTransaction;
                 addBtn.addEventListener('click', handleAddTransaction);
                 addBtn.addEventListener('touchend', function(e) {
                     e.preventDefault();
@@ -1468,7 +1412,6 @@
             
             var budgetBtn = document.getElementById('setBudgetBtn');
             if (budgetBtn) {
-                budgetBtn.onclick = handleSetBudget;
                 budgetBtn.addEventListener('click', handleSetBudget);
                 budgetBtn.addEventListener('touchend', function(e) {
                     e.preventDefault();
